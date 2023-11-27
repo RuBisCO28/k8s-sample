@@ -70,6 +70,5 @@ jobs:
           commit-message: Update manifest
           title: Update manifest
           body: Update manifest
-          branch: main
-          branch-suffix: timestamp
+          base: main
           draft: true
