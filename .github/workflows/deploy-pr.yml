@@ -13,6 +13,8 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read
@@ -44,3 +46,31 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+  update-manifest:
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository RuBisCO28/k8s-sample-manifest
+        uses: actions/checkout@v4
+        with:
+          repository: RuBisCO28/k8s-sample-manifest
+          ref: main
+      - name: Update manifest
+        uses: actions/checkout@v4
+        env:
+          YAML_PATH: 09-cicd/sample-app-manifests/deployment.yaml
+          CONTAINER_NAME: fastapi-sample
+          IMAGE_FULL_NAME: ${{ needs.build-and-push-image.outputs.tags }}
+        run: |
+          yq e -i '.spec.template.spec.containers[] | select(.name == env.CONTAINER_NAME) | .image = env.IMAGE_FULL_NAME' $YAML_PATH
+          cat $YAML_PATH
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          commit-message: Update manifest
+          title: Update manifest
+          body: Update manifest
+          branch: main
+          branch-suffix: timestamp
+          draft: true
